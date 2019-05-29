@@ -20,7 +20,7 @@ def conv_block(inputs, conv_type, kernel, kernel_size, strides, padding='same', 
   x = tf.keras.layers.BatchNormalization()(x)
   
   if (relu):
-    x = tf.keras.activations.relu(x)
+    x = tf.keras.layers.ReLU()(x)
   
   return x
 
@@ -28,7 +28,6 @@ def conv_block(inputs, conv_type, kernel, kernel_size, strides, padding='same', 
 
 #### residual custom method
 """
-
 def _res_bottleneck(inputs, filters, kernel, t, s, r=False):
     tchannel = tf.keras.backend.int_shape(inputs)[-1] * t
 
@@ -36,7 +35,7 @@ def _res_bottleneck(inputs, filters, kernel, t, s, r=False):
 
     x = tf.keras.layers.DepthwiseConv2D(kernel, strides=(s, s), depth_multiplier=1, padding='same')(x)
     x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.activations.relu(x)
+    x = tf.keras.layers.ReLU()(x)
 
     x = conv_block(x, 'conv', filters, (1, 1), strides=(1, 1), padding='same', relu=False)
 
@@ -45,7 +44,6 @@ def _res_bottleneck(inputs, filters, kernel, t, s, r=False):
     return x
 
 """#### Bottleneck custom method"""
-
 def bottleneck_block(inputs, filters, kernel, t, strides, n):
   x = _res_bottleneck(inputs, filters, kernel, t, strides)
   
@@ -55,11 +53,10 @@ def bottleneck_block(inputs, filters, kernel, t, strides, n):
   return x
 
 """#### PPM Method"""
-
 def pyramid_pooling_block(input_tensor, bin_sizes):
   concat_list = [input_tensor]
-  w = 32
-  h = 32
+  w = 8##32
+  h = 8##32
 
   for bin_size in bin_sizes:
     x = tf.keras.layers.AveragePooling2D(pool_size=(w//bin_size, h//bin_size), strides=(w//bin_size, h//bin_size))(input_tensor)
@@ -93,22 +90,22 @@ def build(input_shape):
     ff_layer2 = tf.keras.layers.UpSampling2D((4, 4))(gfe_layer)
     ff_layer2 = tf.keras.layers.DepthwiseConv2D(128, strides=(1, 1), depth_multiplier=1, padding='same')(ff_layer2)
     ff_layer2 = tf.keras.layers.BatchNormalization()(ff_layer2)
-    ff_layer2 = tf.keras.activations.relu(ff_layer2)
+    ff_layer2 = tf.keras.layers.ReLU()(ff_layer2)
     ff_layer2 = tf.keras.layers.Conv2D(128, 1, 1, padding='same', activation=None)(ff_layer2)
 
     ff_final = tf.keras.layers.add([ff_layer1, ff_layer2])
     ff_final = tf.keras.layers.BatchNormalization()(ff_final)
-    ff_final = tf.keras.activations.relu(ff_final)
+    ff_final = tf.keras.layers.ReLU()(ff_final)
 
     """## Step 4: Classifier"""
 
     classifier = tf.keras.layers.SeparableConv2D(128, (3, 3), padding='same', strides = (1, 1), name = 'DSConv1_classifier')(ff_final)
     classifier = tf.keras.layers.BatchNormalization()(classifier)
-    classifier = tf.keras.activations.relu(classifier)
+    classifier = tf.keras.layers.ReLU()(classifier)
 
     classifier = tf.keras.layers.SeparableConv2D(128, (3, 3), padding='same', strides = (1, 1), name = 'DSConv2_classifier')(classifier)
     classifier = tf.keras.layers.BatchNormalization()(classifier)
-    classifier = tf.keras.activations.relu(classifier)
+    classifier = tf.keras.layers.ReLU()(classifier)
 
     classes_maybe = 2#19
     classifier = conv_block(classifier, 'conv', classes_maybe, (1, 1), strides=(1, 1), padding='same', relu=True)
@@ -116,13 +113,13 @@ def build(input_shape):
     classifier = tf.keras.layers.Dropout(0.3)(classifier)
 
     classifier = tf.keras.layers.UpSampling2D((8, 8))(classifier)
-    classifier = tf.keras.activations.softmax(classifier)
+    classifier = tf.keras.layers.Softmax()(classifier)
 
     """## Model Compilation"""
 
     fast_scnn = tf.keras.Model(inputs = input_layer , outputs = classifier, name = 'Fast_SCNN')
-    optimizer = tf.keras.optimizers.SGD(momentum=0.9, lr=0.045)
-    fast_scnn.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+    #optimizer = tf.keras.optimizers.SGD(momentum=0.9, lr=0.045)
+    #fast_scnn.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
 
     #fast_scnn.summary()
 
